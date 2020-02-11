@@ -99,7 +99,11 @@ export default class Model extends Observable {
     }
 
     if (!result.query && !result.live) {
-      this.notification.show(`No service configured`, 'danger', Infinity);
+      this.notification.show(`No QUERY / LIVE services configured`, 'danger', Infinity);
+    } else if (!result.query) {
+      this.notification.show(`QUERY service unavailable due to connectivity issues`, 'danger', Infinity);
+    } else if (!result.live) {
+      this.notification.show(`LIVE service unavailable due to missing configuration`, 'danger', Infinity);
     }
 
     this.servicesResult = RemoteData.success(result);

@@ -13,12 +13,26 @@ let liveSource = null;
 const jsonDb = new JsonFileConnector(config.dbFile || __dirname + '/../db.json');
 
 if (config.mysql) {
-  log.info(`Detected InfoLogger database configration`);
+  log.info(`Detected InfoLogger database configuration`);
   const connection = new MySQL(config.mysql);
-  querySource = new SQLDataSource(connection, config.mysql);
-  querySource.isConnectionUpAndRunning();
+  connection.testConnection().catch((error) => {
+    console.log("NU EMRGE")
+    connection = null;
+  });
+  if (connection) {
+    try {
+      querySource = new SQLDataSource(connection, config.mysql);
+      querySource.isConnectionUpAndRunning()
+        .catch(() => {
+          querySource = null;
+          log.error('Unable to connect to provided MySQL Data Source');
+        });
+    } catch (error) {
+      log.error(`Unable to use MySQL Data Source due to ${error}`);
+    }
+  }
 } else {
-  log.warn(`InfoLogger databse config not found, Query mode not available`);
+  log.warn(`InfoLogger database config not found, Query mode not available`);
 }
 
 if (config.infoLoggerServer) {
@@ -40,9 +54,13 @@ module.exports.attachTo = (http, ws) => {
   });
 
   http.post('/query', (req, res) => {
-    querySource.queryFromFilters(req.body.criterias, req.body.options)
-      .then((result) => res.json(result))
-      .catch((error) => handleError(res, error));
+    if (querySource !== null) {
+      querySource.queryFromFilters(req.body.criterias, req.body.options)
+        .then((result) => res.json(result))
+        .catch((error) => handleError(res, error));
+    } else {
+      handleError(res, 'MySQL Data Source is not available');
+    }
   });
 
   http.get('/getFrameworkInfo', getFrameworkInfo);
